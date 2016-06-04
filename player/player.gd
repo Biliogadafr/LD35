@@ -6,7 +6,7 @@ var bullet = preload("res://bullet/bullet.scn") # bullet scn to make instance an
 var animations
 var health = 100
 var death_timeout = 1.0
-var lastPos = Vector2(0,0)
+var last_mouse_pos = Vector2(0,0)
 var speed = 250.0
 var shoots_per_sec = 15
 var shoot_timeout = 0.05
@@ -60,17 +60,17 @@ func _fixed_process(delta):
 	else:
 		time+=delta
 	#aiming
-	#var global_aim_pos = get_node("Camera2D").get_canvas_transform().xform_inv(lastPos)
+	#var global_aim_pos = get_node("Camera2D").get_canvas_transform().xform_inv(last_mouse_pos)
 	#get camera transformation to convert screen coordinates to world coordinates
 	var transform = get_viewport().get_canvas_transform()
 	#convert mouse pos to world pos
-	var global_aim_pos = transform.affine_inverse() * lastPos
+	var global_aim_pos = transform.affine_inverse() * last_mouse_pos
 	#moving
 	var move_left = Input.is_action_pressed("move_left")
 	var move_right = Input.is_action_pressed("move_right")
 	var move_up = Input.is_action_pressed("move_up")
 	var move_down = Input.is_action_pressed("move_down")
-	var direction = Vector2(move_right-move_left, move_down - move_up)
+	var direction = Vector2(move_right - move_left, move_down - move_up)
 	direction = direction.normalized()
 	direction*=delta*speed*100
 	set_linear_velocity(direction)
@@ -128,14 +128,15 @@ func _fixed_process(delta):
 				get_node("SpritesW").set_hidden(true)
 			
 func shoot(aim_angle):
-	var bulletInst = bullet.instance()
-	get_tree().get_root().get_child( get_tree().get_root().get_child_count() -1 ).add_child(bulletInst)
-	var shootDir = Vector2(0,-1).rotated(aim_angle)
-	var shootPos = get_global_pos()
-	shootPos += shootDir * 20
-	bulletInst.set_global_pos(shootPos)
-	bulletInst.get_node(".").apply_impulse(Vector2(0,0), shootDir * bullet_impulse)
-	bulletInst.set_rot(aim_angle)
+	var new_bullet = bullet.instance()
+	get_tree().get_current_scene().add_child(new_bullet)
+	var shoot_dir = Vector2(0,-1).rotated(aim_angle)
+	var shoot_pos = get_global_pos()
+	shoot_pos += shoot_dir * 20  #spawn bullet with offset from player
+	new_bullet.set_global_pos(shoot_pos)
+	new_bullet.apply_impulse(Vector2(0,0), shoot_dir * bullet_impulse)
+	new_bullet.set_rot(aim_angle)
+	#play sounds
 	var sample = get_node("SamplePlayer")
 	var sound_id = sample.play("shot")
 	sample.set_pitch_scale(sound_id, (randf()-0.5)*0.1+1)
@@ -178,4 +179,4 @@ func onDamage(damage):
 
 func _input(ev):
 	if(ev.type == InputEvent.MOUSE_MOTION):
-		lastPos = ev.pos
+		last_mouse_pos = ev.pos

@@ -16,9 +16,16 @@ var death_timeout = 1.0
 
 var attack_cooldown = 0
 
+var random_target_timer = 0
+var random_target_pos = Vector2(0,0)
+
+func _init():
+	set_meta("network", true)
+
 func _ready():
 	set_fixed_process(true)
 	connect("body_enter", self, "onCollision")
+	#print(get_filename())
 	#animations = get_node("AnimationPlayer")
 	pass
 
@@ -39,22 +46,36 @@ func _fixed_process(delta):
 	if(!anim.is_playing()):
 		anim.play("Run")
 	
-	var player = get_tree().get_current_scene().get_node("Player")
-	var target_pos = player.get_global_pos()
-	var direction = target_pos - get_global_pos()
-	direction = direction.normalized()
-	direction*=delta*speed*100
+	var target_pos
+	if(get_tree().get_current_scene().has_node("Player")):
+		var player = get_tree().get_current_scene().get_node("Player")
+		target_pos = player.get_global_pos()
+	else:
+		random_target_timer-=delta
+		if(random_target_timer <= 0):
+			random_target_pos.x = get_global_pos().x+(randf()-0.5)*speed
+			random_target_pos.y = get_global_pos().y+(randf()-0.5)*speed
+			random_target_timer = 2
+		target_pos = random_target_pos
+		
 	
-
-	set_rot(Vector2(0,-1).angle_to( direction ))
-	#if(abs(Vector2(0,-1).angle_to( direction )-get_rot()) > 0.05):
-	#	if( (get_rot() - Vector2(0,-1).angle_to( direction ) ) > 0):
-	#		set_angular_velocity(rot_speed)
-	#	else:
-	#		set_angular_velocity(-rot_speed)
-	#else:
-	#	set_angular_velocity(0)
-	set_linear_velocity(direction)
+	var direction = target_pos - get_global_pos()
+	if(direction.length()<10):
+		set_linear_velocity(Vector2(0,0))
+	else:
+		direction = direction.normalized()
+		direction*=delta*speed*100
+		
+	
+		set_rot(Vector2(0,-1).angle_to( direction ))
+		#if(abs(Vector2(0,-1).angle_to( direction )-get_rot()) > 0.05):
+		#	if( (get_rot() - Vector2(0,-1).angle_to( direction ) ) > 0):
+		#		set_angular_velocity(rot_speed)
+		#	else:
+		#		set_angular_velocity(-rot_speed)
+		#else:
+		#	set_angular_velocity(0)
+		set_linear_velocity(direction)
 	
 	var colliding_bodies = get_colliding_bodies();
 
@@ -83,3 +104,20 @@ func onDamage(damage):
 
 func onCollision(var collider):
 	pass
+	
+func get_state():
+	var state = {
+		pos = get_global_pos(),
+		rot = get_rot(),
+		rand_target = random_target_pos
+	}
+	if(random_target_timer<=0):
+		state.rand_target=null
+	return state
+
+func set_state(state):
+	set_global_pos(state.pos)
+	set_rot(state.rot)
+	if(state.rand_target!=null):
+		random_target_pos = state.rand_target
+		random_target_timer = 2
